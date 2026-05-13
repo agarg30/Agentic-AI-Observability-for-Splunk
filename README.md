@@ -76,12 +76,16 @@ Traditional APM and monitoring tools were built for software systems — request
 │  3. Splunk Enterprise  (localhost:8000)                             │
 │     Indexes: agent_sessions · agent_traces · agent_logs            │
 │     ┌─────────────────────┐   ┌──────────────────────────────────┐ │
-│     │  3 Dashboards        │   │  7 Scheduled Alerts              │ │
-│     │  · AI Agent Overview │   │  · High anomaly rate             │ │
-│     │  · Anomaly Invest.   │   │  · Cost spike detected           │ │
-│     │  · Agent Health      │   │  · Hallucination rate            │ │
-│     └─────────────────────┘   │  · Failure loop · Timeout · etc. │ │
-│                                └────────────────┬─────────────────┘ │
+│     │  3 Dashboards         │   │  8 Scheduled Alerts             │ │
+│     │  · AI Agent Overview  │   │  · High anomaly rate            │ │
+│     │  · Anomaly Invest.    │   │  · Cost spike detected          │ │
+│     │  · Agent Health       │   │  · Hallucination surge          │ │
+│     └──────────────────────┘   │  · Failure loop storm           │ │
+│                                 │  · Timeout storm                │ │
+│                                 │  · Null response cascade        │ │
+│                                 │  · Agent silent                 │ │
+│                                 │  · Unhealthy agent (CB) ←NEW   │ │
+│                                 └────────────────┬────────────────┘ │
 └────────────┬────────────────────────────────────┼────────────────────┘
              │                                    │ alert fires
              │                                    ▼
@@ -165,7 +169,7 @@ Agentic-AI-Observability-for-Splunk/
 │   └── default/
 │       ├── app.conf              # App metadata
 │       ├── indexes.conf          # Custom indexes: agent_sessions, traces, logs
-│       ├── savedsearches.conf    # 8 scheduled alerts (incl. unhealthy agent CB)
+│       ├── savedsearches.conf    # 8 scheduled alerts (7 anomaly + 1 circuit breaker)
 │       └── data/ui/views/        # 3 Dashboard Studio JSON dashboards
 ├── mcp/                          # Splunk MCP Server integration
 │   ├── client.py                 # MCP client — natural language → SPL → results
