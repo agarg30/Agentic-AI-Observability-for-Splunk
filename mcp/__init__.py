@@ -1,0 +1,1 @@
+# Splunk MCP integration package

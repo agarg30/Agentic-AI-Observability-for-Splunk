@@ -59,28 +59,76 @@ Traditional APM and monitoring tools were built for software systems — request
 ## Architecture
 
 ```
-AI Agents (any framework)
-        │
-        ▼
-  Telemetry Collector (Python SDK modular input)
-        │
-        ▼
-  Splunk Enterprise (indexes: agent_traces, agent_logs, agent_sessions)
-        │
-        ├── Splunk MCP Server ──► AI Agent queries Splunk data via natural language
-        │
-        ├── Splunk AI Assistant ──► SPL generation for ad-hoc investigation
-        │
-        ├── Splunk AI Toolkit ──► Anomaly detection models on agent behavior
-        │
-        └── Foundation-Sec-1.1-8B (Hosted Model) ──► Reasoning over agent failures
-                │
-                ▼
-        Automated Remediation Actions (Python SDK)
-        - Trigger alerts
-        - Reroute agent traffic
-        - Quarantine misbehaving agents
+┌─────────────────────────────────────────────────────────────────────┐
+│  1. AI Agents  (loan bot, support bot, fraud detector, etc.)        │
+│     Emit: session events, tool calls, model responses, costs        │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │  JSON telemetry
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  2. modular_input/collector.py  — Telemetry Ingestion               │
+│     Reads agent logs → pushes to Splunk via HEC (port 8088)         │
+│     sample_data/generate.py generates 500 synthetic agent sessions  │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │  stored in Splunk indexes
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  3. Splunk Enterprise  (localhost:8000)                             │
+│     Indexes: agent_sessions · agent_traces · agent_logs            │
+│     ┌─────────────────────┐   ┌──────────────────────────────────┐ │
+│     │  3 Dashboards        │   │  7 Scheduled Alerts              │ │
+│     │  · AI Agent Overview │   │  · High anomaly rate             │ │
+│     │  · Anomaly Invest.   │   │  · Cost spike detected           │ │
+│     │  · Agent Health      │   │  · Hallucination rate            │ │
+│     └─────────────────────┘   │  · Failure loop · Timeout · etc. │ │
+│                                └────────────────┬─────────────────┘ │
+└────────────┬────────────────────────────────────┼────────────────────┘
+             │                                    │ alert fires
+             │                                    ▼
+             │                ┌───────────────────────────────────────┐
+             │                │  5. remediation/action_handler.py     │
+             │                │     Auto-fixes 5 anomaly types:       │
+             │                │     · hallucination → throttle model  │
+             │                │     · failure loop → circuit break    │
+             │                │     · cost spike → cap token budget   │
+             │                │     · null cascade → fallback prompt  │
+             │                │     · timeout → reroute agent         │
+             │                │     Logs remediation back to Splunk   │
+             │                └───────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  4. Splunk MCP Server  (installed Splunk app, port 8089)            │
+│     Exposes 14 tools over Model Context Protocol:                   │
+│     · splunk_run_query      → run any SPL search                    │
+│     · saia_ask_splunk_question → plain English → Splunk answer      │
+│     · saia_generate_spl     → question → SPL                        │
+│     · saia_explain_spl      → explain what a query does             │
+│     · splunk_run_saved_search → run named alerts/searches           │
+│     · splunk_get_indexes, splunk_get_info, + 8 more                 │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │  MCP protocol (HTTPS, port 8089)
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  mcp/client.py  — Natural Language Observability Client             │
+│  "Which agent had the most failures?" → live Splunk data in seconds │
+│                                                                     │
+│  python mcp/client.py --query "top failing agents"                  │
+│  python mcp/client.py --ask  "why would an agent hallucinate?"      │
+│  python mcp/client.py --spl  "index=agent_sessions | stats ..."     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
+
+### How It All Connects — The Demo Story
+
+| Step | What Happens | Which Component |
+|------|-------------|-----------------|
+| Agent misbehaves at midnight | Emits anomalous session events | AI Agent |
+| Events land in Splunk | HEC ingestion in real time | `collector.py` |
+| Alert fires at 12:05 AM | Hallucination rate > threshold | `savedsearches.conf` |
+| Auto-remediation runs | Model throttled, team notified | `action_handler.py` |
+| Engineer investigates at 8 AM | Types a question in plain English | `mcp/client.py` |
+| Gets the answer instantly | MCP → SPL → Splunk → results | Splunk MCP Server |
 
 ---
 
@@ -112,11 +160,64 @@ AI Agents (any framework)
 ```
 Agentic-AI-Observability-for-Splunk/
 ├── app/                        # Splunk app (dashboards, searches, alerts)
-├── modular_input/              # Python SDK telemetry collector
+│   └── default/
+│       ├── app.conf            # App metadata
+│       ├── indexes.conf        # Custom indexes: agent_sessions, traces, logs
+│       ├── savedsearches.conf  # 7 scheduled alerts for anomaly detection
+│       └── data/ui/views/      # 3 Dashboard Studio JSON dashboards
+├── mcp/                        # Splunk MCP Server integration
+│   ├── client.py               # MCP client — natural language → SPL → results
+│   └── demo.py                 # Full end-to-end observability demo script
+├── modular_input/              # Python SDK telemetry collector (HEC)
+│   └── collector.py            # Sends agent telemetry to Splunk indexes
 ├── remediation/                # Auto-remediation scripts
+│   └── action_handler.py       # Alert-triggered remediation (5 anomaly types)
 ├── sample_data/                # Synthetic AI agent logs for demo
-├── docs/                       # Architecture diagrams and documentation
+│   └── generate.py             # Generates 500 sessions with realistic anomalies
+├── docs/                       # Documentation
+│   ├── architecture.md         # Component diagram and data flow
+│   └── mcp_setup.md            # MCP Server setup guide
+├── .env.example                # Environment variable template
 └── README.md
+```
+
+---
+
+## Quick Start
+
+### 1. Configure environment
+```bash
+cp .env.example .env
+# Edit .env with your Splunk HEC token, credentials, and MCP server URL
+```
+
+### 2. Generate and load synthetic data
+```bash
+python sample_data/generate.py       # generates 500 AI agent sessions
+python modular_input/collector.py    # sends events to Splunk via HEC
+```
+
+### 3. View dashboards in Splunk
+Open Splunk Web → Search & Reporting → Dashboards:
+- **AI Agent Overview** — KPIs, trends, agent comparison
+- **Anomaly Investigation** — hallucinations, failure loops, cost spikes
+- **Agent Health** — per-agent health scoring and latency
+
+### 4. Query via MCP (natural language)
+```bash
+python mcp/client.py --query "Which agent had the most failures today?"
+python mcp/client.py --list-tools    # see all available MCP tools
+```
+
+### 5. Run the full demo
+```bash
+python mcp/demo.py   # end-to-end scenario: detect → query → remediate
+```
+
+### 6. Test auto-remediation
+```bash
+python remediation/action_handler.py --anomaly_type failure_loop \
+    --agent_id LoanQueryAgent --session_id session-001
 ```
 
 ---
