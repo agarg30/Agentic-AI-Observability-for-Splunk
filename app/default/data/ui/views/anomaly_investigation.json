@@ -1,0 +1,176 @@
+{
+  "visualizations": {
+    "viz_anomaly_summary": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_anomaly_total" },
+      "title": "Total Anomalies",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#ff4757" }
+    },
+    "viz_hallucination_count": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_hallucination" },
+      "title": "Hallucinations",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#ffa502" }
+    },
+    "viz_loop_count": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_loops" },
+      "title": "Failure Loops",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#ff6b81" }
+    },
+    "viz_cost_spike_count": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_cost_spikes" },
+      "title": "Cost Spikes",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#eccc68" }
+    },
+    "viz_timeout_count": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_timeouts" },
+      "title": "Timeouts",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#a29bfe" }
+    },
+    "viz_null_cascade_count": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_null_cascades" },
+      "title": "Null Cascades",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#00cec9" }
+    },
+    "viz_anomaly_by_agent": {
+      "type": "splunk.bar",
+      "dataSources": { "primary": "ds_anomaly_agent" },
+      "title": "Anomalies by Agent",
+      "options": { "backgroundColor": "#1a1a2e" }
+    },
+    "viz_anomaly_by_type_time": {
+      "type": "splunk.column",
+      "dataSources": { "primary": "ds_anomaly_type_time" },
+      "title": "Anomaly Types Over Time",
+      "options": { "backgroundColor": "#1a1a2e" }
+    },
+    "viz_cost_spike_sessions": {
+      "type": "splunk.bar",
+      "dataSources": { "primary": "ds_cost_spike_detail" },
+      "title": "Top Cost Spike Sessions (Token Usage)",
+      "options": { "backgroundColor": "#1a1a2e" }
+    },
+    "viz_hallucination_confidence": {
+      "type": "splunk.scatter",
+      "dataSources": { "primary": "ds_hallucination_traces" },
+      "title": "Hallucination — Confidence Scores",
+      "options": { "backgroundColor": "#1a1a2e" }
+    },
+    "viz_anomaly_detail_table": {
+      "type": "splunk.table",
+      "dataSources": { "primary": "ds_anomaly_detail" },
+      "title": "Anomaly Detail — All Incidents",
+      "options": {
+        "backgroundColor": "#1a1a2e",
+        "count": 20
+      }
+    },
+    "viz_error_log_table": {
+      "type": "splunk.table",
+      "dataSources": { "primary": "ds_error_logs" },
+      "title": "Error Logs",
+      "options": {
+        "backgroundColor": "#1a1a2e",
+        "count": 20
+      }
+    }
+  },
+  "dataSources": {
+    "ds_anomaly_total": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type!=normal | stats count" },
+      "name": "Total Anomalies"
+    },
+    "ds_hallucination": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type=hallucination | stats count" },
+      "name": "Hallucinations"
+    },
+    "ds_loops": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type=failure_loop | stats count" },
+      "name": "Failure Loops"
+    },
+    "ds_cost_spikes": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type=cost_spike | stats count" },
+      "name": "Cost Spikes"
+    },
+    "ds_timeouts": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type=timeout | stats count" },
+      "name": "Timeouts"
+    },
+    "ds_null_cascades": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type=null_response_cascade | stats count" },
+      "name": "Null Cascades"
+    },
+    "ds_anomaly_agent": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type!=normal | stats count by agent_name, anomaly_type | sort -count" },
+      "name": "Anomalies by Agent"
+    },
+    "ds_anomaly_type_time": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type!=normal | timechart span=1d count by anomaly_type" },
+      "name": "Anomaly Types Over Time"
+    },
+    "ds_cost_spike_detail": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type=cost_spike | stats sum(tokens_total) as total_tokens by session_id, agent_name | sort -total_tokens | head 10" },
+      "name": "Cost Spike Sessions"
+    },
+    "ds_hallucination_traces": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_traces anomaly_type=hallucination | table session_id, step, confidence, duration_ms" },
+      "name": "Hallucination Traces"
+    },
+    "ds_anomaly_detail": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type!=normal | table _time, agent_name, user_id, anomaly_type, status, tokens_total, cost_usd, duration_s, error | sort -_time" },
+      "name": "Anomaly Detail"
+    },
+    "ds_error_logs": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_logs level=ERROR | table _time, agent_name, message, error_type, session_id | sort -_time | head 50" },
+      "name": "Error Logs"
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "earliest": "-7d",
+          "latest": "now"
+        }
+      }
+    }
+  },
+  "inputs": {},
+  "layout": {
+    "type": "grid",
+    "options": { "backgroundColor": "#0d0d1a" },
+    "structure": [
+      { "item": "viz_anomaly_summary",       "type": "block", "position": { "x": 0,   "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_hallucination_count",   "type": "block", "position": { "x": 200, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_loop_count",            "type": "block", "position": { "x": 400, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_cost_spike_count",      "type": "block", "position": { "x": 600, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_timeout_count",         "type": "block", "position": { "x": 800, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_null_cascade_count",    "type": "block", "position": { "x": 1000,"y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_anomaly_by_agent",      "type": "block", "position": { "x": 0,   "y": 150, "w": 600, "h": 300 } },
+      { "item": "viz_anomaly_by_type_time",  "type": "block", "position": { "x": 600, "y": 150, "w": 600, "h": 300 } },
+      { "item": "viz_cost_spike_sessions",   "type": "block", "position": { "x": 0,   "y": 450, "w": 600, "h": 300 } },
+      { "item": "viz_hallucination_confidence","type": "block","position": { "x": 600, "y": 450, "w": 600, "h": 300 } },
+      { "item": "viz_anomaly_detail_table",  "type": "block", "position": { "x": 0,   "y": 750, "w": 1200,"h": 350 } },
+      { "item": "viz_error_log_table",       "type": "block", "position": { "x": 0,   "y": 1100,"w": 1200,"h": 350 } }
+    ],
+    "globalInputs": []
+  },
+  "title": "Anomaly Investigation",
+  "description": "Deep-dive investigation into AI agent anomalies — hallucinations, loops, cost spikes, timeouts, and null cascades"
+}

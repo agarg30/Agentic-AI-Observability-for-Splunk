@@ -1,0 +1,194 @@
+{
+  "visualizations": {
+    "viz_total_agents": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_total_agents" },
+      "title": "Total Agents",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#00d4ff" }
+    },
+    "viz_healthy_agents": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_healthy_agents" },
+      "title": "Healthy Agents",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#2ed573" }
+    },
+    "viz_avg_session_duration": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_avg_duration" },
+      "title": "Avg Session Duration (s)",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#a29bfe" }
+    },
+    "viz_total_tokens": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_total_tokens" },
+      "title": "Total Tokens Used",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#ffa502" }
+    },
+    "viz_avg_cost_per_session": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_avg_cost" },
+      "title": "Avg Cost / Session ($)",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#2ed573", "unit": "$" }
+    },
+    "viz_success_rate": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_success_rate" },
+      "title": "Success Rate %",
+      "options": { "backgroundColor": "#1a1a2e", "majorColor": "#2ed573", "unit": "%" }
+    },
+    "viz_agent_session_count": {
+      "type": "splunk.bar",
+      "dataSources": { "primary": "ds_agent_sessions" },
+      "title": "Sessions per Agent",
+      "options": { "backgroundColor": "#1a1a2e" }
+    },
+    "viz_agent_error_rate": {
+      "type": "splunk.bar",
+      "dataSources": { "primary": "ds_agent_error_rate" },
+      "title": "Error Rate by Agent (%)",
+      "options": { "backgroundColor": "#1a1a2e" }
+    },
+    "viz_token_usage_time": {
+      "type": "splunk.line",
+      "dataSources": { "primary": "ds_token_time" },
+      "title": "Token Usage Over Time",
+      "options": { "backgroundColor": "#1a1a2e" }
+    },
+    "viz_cost_over_time": {
+      "type": "splunk.area",
+      "dataSources": { "primary": "ds_cost_time" },
+      "title": "Cost Over Time (USD)",
+      "options": { "backgroundColor": "#1a1a2e" }
+    },
+    "viz_model_usage": {
+      "type": "splunk.pie",
+      "dataSources": { "primary": "ds_model_usage" },
+      "title": "Sessions by Model",
+      "options": { "backgroundColor": "#1a1a2e" }
+    },
+    "viz_app_usage": {
+      "type": "splunk.pie",
+      "dataSources": { "primary": "ds_app_usage" },
+      "title": "Sessions by App",
+      "options": { "backgroundColor": "#1a1a2e" }
+    },
+    "viz_agent_health_table": {
+      "type": "splunk.table",
+      "dataSources": { "primary": "ds_agent_health_table" },
+      "title": "Agent Health Summary",
+      "options": { "backgroundColor": "#1a1a2e", "count": 20 }
+    },
+    "viz_latency_by_agent": {
+      "type": "splunk.bar",
+      "dataSources": { "primary": "ds_latency_agent" },
+      "title": "Avg Latency by Agent (s)",
+      "options": { "backgroundColor": "#1a1a2e" }
+    }
+  },
+  "dataSources": {
+    "ds_total_agents": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats dc(agent_id) as count" },
+      "name": "Total Agents"
+    },
+    "ds_healthy_agents": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats count as total, count(eval(anomaly_type=\"normal\")) as healthy by agent_id | where healthy/total > 0.8 | stats count" },
+      "name": "Healthy Agents"
+    },
+    "ds_avg_duration": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats avg(duration_s) as avg_dur | eval avg_dur=round(avg_dur,1) | table avg_dur" },
+      "name": "Avg Duration"
+    },
+    "ds_total_tokens": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats sum(tokens_total) as total | table total" },
+      "name": "Total Tokens"
+    },
+    "ds_avg_cost": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats avg(cost_usd) as avg_cost | eval avg_cost=round(avg_cost,4) | table avg_cost" },
+      "name": "Avg Cost"
+    },
+    "ds_success_rate": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats count as total, count(eval(status=\"completed\")) as success | eval rate=round(success/total*100,1) | table rate" },
+      "name": "Success Rate"
+    },
+    "ds_agent_sessions": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats count by agent_name | sort -count" },
+      "name": "Sessions per Agent"
+    },
+    "ds_agent_error_rate": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats count as total, count(eval(status=\"failed\" OR status=\"timeout\")) as errors by agent_name | eval error_rate=round(errors/total*100,1) | table agent_name, error_rate | sort -error_rate" },
+      "name": "Agent Error Rate"
+    },
+    "ds_token_time": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | timechart span=1d sum(tokens_total) as total_tokens" },
+      "name": "Token Usage Over Time"
+    },
+    "ds_cost_time": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | timechart span=1d sum(cost_usd) as total_cost" },
+      "name": "Cost Over Time"
+    },
+    "ds_model_usage": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats count by model" },
+      "name": "Model Usage"
+    },
+    "ds_app_usage": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats count by app" },
+      "name": "App Usage"
+    },
+    "ds_agent_health_table": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats count as total_sessions, count(eval(status=\"completed\")) as success, count(eval(anomaly_type!=\"normal\")) as anomalies, round(avg(cost_usd),4) as avg_cost, round(avg(duration_s),1) as avg_duration, round(avg(tokens_total),0) as avg_tokens by agent_name | eval success_rate=round(success/total_sessions*100,1) | sort -anomalies" },
+      "name": "Agent Health Table"
+    },
+    "ds_latency_agent": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats avg(duration_s) as avg_latency by agent_name | eval avg_latency=round(avg_latency,2) | sort -avg_latency" },
+      "name": "Latency by Agent"
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "earliest": "-7d",
+          "latest": "now"
+        }
+      }
+    }
+  },
+  "inputs": {},
+  "layout": {
+    "type": "grid",
+    "options": { "backgroundColor": "#0d0d1a" },
+    "structure": [
+      { "item": "viz_total_agents",        "type": "block", "position": { "x": 0,   "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_healthy_agents",      "type": "block", "position": { "x": 200, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_success_rate",        "type": "block", "position": { "x": 400, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_avg_session_duration","type": "block", "position": { "x": 600, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_total_tokens",        "type": "block", "position": { "x": 800, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_avg_cost_per_session","type": "block", "position": { "x": 1000,"y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_token_usage_time",    "type": "block", "position": { "x": 0,   "y": 150, "w": 600, "h": 300 } },
+      { "item": "viz_cost_over_time",      "type": "block", "position": { "x": 600, "y": 150, "w": 600, "h": 300 } },
+      { "item": "viz_agent_session_count", "type": "block", "position": { "x": 0,   "y": 450, "w": 400, "h": 300 } },
+      { "item": "viz_agent_error_rate",    "type": "block", "position": { "x": 400, "y": 450, "w": 400, "h": 300 } },
+      { "item": "viz_latency_by_agent",    "type": "block", "position": { "x": 800, "y": 450, "w": 400, "h": 300 } },
+      { "item": "viz_model_usage",         "type": "block", "position": { "x": 0,   "y": 750, "w": 400, "h": 300 } },
+      { "item": "viz_app_usage",           "type": "block", "position": { "x": 400, "y": 750, "w": 400, "h": 300 } },
+      { "item": "viz_agent_health_table",  "type": "block", "position": { "x": 0,   "y": 1050,"w": 1200,"h": 350 } }
+    ],
+    "globalInputs": []
+  },
+  "title": "Agent Health",
+  "description": "Per-agent health monitoring — sessions, success rate, token usage, latency, and cost"
+}
