@@ -1,0 +1,10 @@
+{
+  "agent-loan-001": {
+    "status": "healthy",
+    "quarantined_at": "2026-05-13T21:25:13.695510+00:00",
+    "restore_check_at": "2026-05-13T21:55:37.548115+00:00",
+    "reason": "Failure rate exceeded 30% threshold (detected by Splunk alert)",
+    "restored_at": "2026-05-13T21:25:37.551281+00:00",
+    "failure_rate": 0.12
+  }
+}

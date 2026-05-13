@@ -22,11 +22,13 @@ import subprocess
 import logging
 from pathlib import Path
 
-# Add project root to path
-ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(ROOT))
+# Add mcp/ directory to path so we can import client.py directly
+# (avoids naming conflict with the installed 'mcp' SDK package)
+MCP_DIR = Path(__file__).parent
+ROOT    = MCP_DIR.parent          # project root (one level up from mcp/)
+sys.path.insert(0, str(MCP_DIR))
 
-from mcp.client import load_env, list_tools, query_spl, natural_language_query
+from client import load_env, list_tools, query_spl, natural_language_query
 
 logging.basicConfig(
     level=logging.INFO,

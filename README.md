@@ -142,6 +142,8 @@ Traditional APM and monitoring tools were built for software systems — request
 | Hallucination Flagging | Score and flag low-confidence or inconsistent responses |
 | Natural Language Investigation | Ask questions about agent behavior in plain English |
 | Auto-Remediation | Close the loop — act on anomalies automatically |
+| Circuit Breaker | Quarantine unhealthy agents; fallback routing keeps users served |
+| Automatic Recovery | Health recheck via Splunk after 30 min; restores agent when healthy |
 
 ---
 
@@ -159,25 +161,29 @@ Traditional APM and monitoring tools were built for software systems — request
 
 ```
 Agentic-AI-Observability-for-Splunk/
-├── app/                        # Splunk app (dashboards, searches, alerts)
+├── app/                          # Splunk app (dashboards, searches, alerts)
 │   └── default/
-│       ├── app.conf            # App metadata
-│       ├── indexes.conf        # Custom indexes: agent_sessions, traces, logs
-│       ├── savedsearches.conf  # 7 scheduled alerts for anomaly detection
-│       └── data/ui/views/      # 3 Dashboard Studio JSON dashboards
-├── mcp/                        # Splunk MCP Server integration
-│   ├── client.py               # MCP client — natural language → SPL → results
-│   └── demo.py                 # Full end-to-end observability demo script
-├── modular_input/              # Python SDK telemetry collector (HEC)
-│   └── collector.py            # Sends agent telemetry to Splunk indexes
-├── remediation/                # Auto-remediation scripts
-│   └── action_handler.py       # Alert-triggered remediation (5 anomaly types)
-├── sample_data/                # Synthetic AI agent logs for demo
-│   └── generate.py             # Generates 500 sessions with realistic anomalies
-├── docs/                       # Documentation
-│   ├── architecture.md         # Component diagram and data flow
-│   └── mcp_setup.md            # MCP Server setup guide
-├── .env.example                # Environment variable template
+│       ├── app.conf              # App metadata
+│       ├── indexes.conf          # Custom indexes: agent_sessions, traces, logs
+│       ├── savedsearches.conf    # 8 scheduled alerts (incl. unhealthy agent CB)
+│       └── data/ui/views/        # 3 Dashboard Studio JSON dashboards
+├── mcp/                          # Splunk MCP Server integration
+│   ├── client.py                 # MCP client — natural language → SPL → results
+│   ├── demo.py                   # Full end-to-end observability demo (10 steps)
+│   ├── demoHealthy.py            # Demo 1: MCP queries + auto-remediation (3 min)
+│   └── demoCircuitBreaker.py     # Demo 2: circuit breaker quarantine + recovery (3 min)
+├── modular_input/                # Python SDK telemetry collector (HEC)
+│   └── collector.py              # Sends agent telemetry to Splunk indexes
+├── remediation/                  # Auto-remediation scripts
+│   ├── action_handler.py         # Alert-triggered remediation (5 anomaly types)
+│   ├── circuit_breaker.py        # Circuit breaker: quarantine → fallback → restore
+│   └── agent_state.json          # Persisted agent circuit-breaker state
+├── sample_data/                  # Synthetic AI agent logs for demo
+│   └── generate.py               # Generates 500 sessions with realistic anomalies
+├── docs/                         # Documentation
+│   ├── architecture.md           # Component diagram and data flow
+│   └── mcp_setup.md              # MCP Server setup guide
+├── .env.example                  # Environment variable template
 └── README.md
 ```
 
@@ -186,13 +192,13 @@ Agentic-AI-Observability-for-Splunk/
 ## Quick Start
 
 ### 1. Configure environment
-```bash
-cp .env.example .env
+```powershell
+copy .env.example .env
 # Edit .env with your Splunk HEC token, credentials, and MCP server URL
 ```
 
 ### 2. Generate and load synthetic data
-```bash
+```powershell
 python sample_data/generate.py       # generates 500 AI agent sessions
 python modular_input/collector.py    # sends events to Splunk via HEC
 ```
@@ -204,21 +210,80 @@ Open Splunk Web → Search & Reporting → Dashboards:
 - **Agent Health** — per-agent health scoring and latency
 
 ### 4. Query via MCP (natural language)
-```bash
-python mcp/client.py --query "Which agent had the most failures today?"
-python mcp/client.py --list-tools    # see all available MCP tools
+```powershell
+python mcp/client.py --query "top failing agents"
+python mcp/client.py --query "anomaly summary"
+python mcp/client.py --query "cost breakdown by agent"
+python mcp/client.py --ask  "why would an agent hallucinate?"
+python mcp/client.py --spl  "index=agent_sessions | stats count by status"
+python mcp/client.py --list-tools    # see all 14 MCP tools
 ```
 
-### 5. Run the full demo
-```bash
-python mcp/demo.py   # end-to-end scenario: detect → query → remediate
+### 5. Run Demo 1 — MCP Queries + Auto-Remediation (3 min)
+```powershell
+python mcp/demoHealthy.py
+```
+Covers: MCP connection → agent health check → anomaly detection → cost analysis → auto-remediation firing → Splunk audit trail
+
+### 6. Run Demo 2 — Circuit Breaker (3 min)
+```powershell
+python mcp/demoCircuitBreaker.py
+```
+Covers: detect unhealthy agent → quarantine → fallback routing (users kept served) → health recheck → automatic restore
+
+### 7. Circuit Breaker — manual controls
+```powershell
+# Check status of all agents
+python remediation/circuit_breaker.py --action status
+
+# Quarantine an agent manually
+python remediation/circuit_breaker.py --action quarantine --agent_id agent-loan-001
+
+# Restore an agent manually
+python remediation/circuit_breaker.py --action restore --agent_id agent-loan-001
+
+# Run health recheck on all quarantined agents now
+python remediation/circuit_breaker.py --action check
+
+# Background monitor loop (checks every 5 min, auto-restores when healthy)
+python remediation/circuit_breaker.py --action monitor
 ```
 
-### 6. Test auto-remediation
-```bash
-python remediation/action_handler.py --anomaly_type failure_loop \
-    --agent_id LoanQueryAgent --session_id session-001
+### 8. Test auto-remediation directly
+```powershell
+python remediation/action_handler.py --anomaly_type failure_loop --agent_id agent-loan-001 --session_id session-001
+python remediation/action_handler.py --anomaly_type hallucination --agent_id agent-fraud-003 --session_id session-002
+python remediation/action_handler.py --anomaly_type cost_spike --agent_id agent-support-002 --session_id session-003
 ```
+
+---
+
+## Circuit Breaker — How It Works
+
+```
+  Agent failure rate > 30%
+         │
+         ▼
+  ┌─────────────┐   quarantine_agent()     ┌──────────────────────┐
+  │   CLOSED    │ ──────────────────────►  │   OPEN (quarantined) │
+  │  (healthy)  │                          │   calls BLOCKED 30min│
+  └─────────────┘                          └──────────┬───────────┘
+         ▲                                            │ fallback routing
+         │                               users routed to backup agent
+         │ failure_rate ≤ 30%                         │
+         │                                            ▼
+  restore_agent()          ◄──────────  ┌──────────────────────┐
+                                         │  HALF-OPEN           │
+                                         │  (health recheck)    │
+                                         │  queries Splunk live │
+                                         └──────────────────────┘
+```
+
+**Key behaviour:**
+- While an agent is quarantined, `route_call()` transparently redirects calls to a **fallback agent** — users are never blocked
+- If both primary and fallback are down, users receive a graceful **"temporarily unavailable"** message instead of a crash
+- After 30 minutes, the health recheck queries **live Splunk data** — no manual intervention needed
+- All state changes are logged to `index=agent_logs sourcetype=ai_agent:circuit_breaker` for full audit trail
 
 ---
 
