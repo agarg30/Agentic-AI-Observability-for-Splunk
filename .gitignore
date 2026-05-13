@@ -1,0 +1,43 @@
+# Environment variables — never commit credentials
+.env
+.env.*
+
+# Generated sample data output — too large, regenerate locally
+sample_data/output/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# VS Code
+.vscode/
+
+# Splunk local config overrides — machine-specific, not for source control
+app/local/
+app/metadata/local.meta
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/

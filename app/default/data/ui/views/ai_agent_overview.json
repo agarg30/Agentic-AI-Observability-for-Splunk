@@ -1,0 +1,208 @@
+{
+  "visualizations": {
+    "viz_total_sessions": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_sessions" },
+      "title": "Total Sessions",
+      "options": {
+        "backgroundColor": "#1a1a2e",
+        "majorColor": "#00d4ff",
+        "trendColor": "#00d4ff"
+      }
+    },
+    "viz_anomaly_count": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_anomalies" },
+      "title": "Anomalies Detected",
+      "options": {
+        "backgroundColor": "#1a1a2e",
+        "majorColor": "#ff4757",
+        "trendColor": "#ff4757"
+      }
+    },
+    "viz_error_rate": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_error_rate" },
+      "title": "Error Rate %",
+      "options": {
+        "backgroundColor": "#1a1a2e",
+        "majorColor": "#ffa502",
+        "unit": "%"
+      }
+    },
+    "viz_total_cost": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_cost" },
+      "title": "Total Cost (USD)",
+      "options": {
+        "backgroundColor": "#1a1a2e",
+        "majorColor": "#2ed573",
+        "unit": "$"
+      }
+    },
+    "viz_avg_tokens": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_tokens" },
+      "title": "Avg Tokens / Session",
+      "options": {
+        "backgroundColor": "#1a1a2e",
+        "majorColor": "#a29bfe"
+      }
+    },
+    "viz_active_agents": {
+      "type": "splunk.singlevalue",
+      "dataSources": { "primary": "ds_agents" },
+      "title": "Active Agents",
+      "options": {
+        "backgroundColor": "#1a1a2e",
+        "majorColor": "#00d4ff"
+      }
+    },
+    "viz_anomaly_breakdown": {
+      "type": "splunk.pie",
+      "dataSources": { "primary": "ds_anomaly_breakdown" },
+      "title": "Anomaly Breakdown",
+      "options": {
+        "backgroundColor": "#1a1a2e"
+      }
+    },
+    "viz_sessions_over_time": {
+      "type": "splunk.line",
+      "dataSources": { "primary": "ds_sessions_time" },
+      "title": "Sessions Over Time",
+      "options": {
+        "backgroundColor": "#1a1a2e"
+      }
+    },
+    "viz_agent_health": {
+      "type": "splunk.bar",
+      "dataSources": { "primary": "ds_agent_health" },
+      "title": "Sessions by Agent",
+      "options": {
+        "backgroundColor": "#1a1a2e"
+      }
+    },
+    "viz_cost_by_agent": {
+      "type": "splunk.bar",
+      "dataSources": { "primary": "ds_cost_agent" },
+      "title": "Cost by Agent (USD)",
+      "options": {
+        "backgroundColor": "#1a1a2e"
+      }
+    },
+    "viz_anomaly_timeline": {
+      "type": "splunk.column",
+      "dataSources": { "primary": "ds_anomaly_time" },
+      "title": "Anomalies Over Time",
+      "options": {
+        "backgroundColor": "#1a1a2e"
+      }
+    },
+    "viz_top_errors": {
+      "type": "splunk.table",
+      "dataSources": { "primary": "ds_top_errors" },
+      "title": "Recent Anomalous Sessions",
+      "options": {
+        "backgroundColor": "#1a1a2e",
+        "count": 10
+      }
+    }
+  },
+  "dataSources": {
+    "ds_sessions": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats count" },
+      "name": "Total Sessions"
+    },
+    "ds_anomalies": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type!=normal | stats count" },
+      "name": "Anomaly Count"
+    },
+    "ds_error_rate": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats count as total, count(eval(status=\"failed\" OR status=\"timeout\")) as errors | eval error_rate=round(errors/total*100,1) | table error_rate" },
+      "name": "Error Rate"
+    },
+    "ds_cost": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats sum(cost_usd) as total_cost | eval total_cost=round(total_cost,2) | table total_cost" },
+      "name": "Total Cost"
+    },
+    "ds_tokens": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats avg(tokens_total) as avg_tokens | eval avg_tokens=round(avg_tokens,0) | table avg_tokens" },
+      "name": "Avg Tokens"
+    },
+    "ds_agents": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats dc(agent_id) as active_agents | table active_agents" },
+      "name": "Active Agents"
+    },
+    "ds_anomaly_breakdown": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type!=normal | stats count by anomaly_type" },
+      "name": "Anomaly Breakdown"
+    },
+    "ds_sessions_time": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | timechart span=1d count as Sessions" },
+      "name": "Sessions Over Time"
+    },
+    "ds_agent_health": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats count by agent_name | sort -count" },
+      "name": "Sessions by Agent"
+    },
+    "ds_cost_agent": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions | stats sum(cost_usd) as total_cost by agent_name | eval total_cost=round(total_cost,2) | sort -total_cost" },
+      "name": "Cost by Agent"
+    },
+    "ds_anomaly_time": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type!=normal | timechart span=1d count by anomaly_type" },
+      "name": "Anomalies Over Time"
+    },
+    "ds_top_errors": {
+      "type": "ds.search",
+      "options": { "query": "index=agent_sessions anomaly_type!=normal | table _time, agent_name, user_id, anomaly_type, status, cost_usd, duration_s, error | sort -_time | head 20" },
+      "name": "Recent Anomalous Sessions"
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "timeformat": "%Y-%m-%dT%H:%M:%S.%3N%z",
+          "earliest": "-7d",
+          "latest": "now"
+        }
+      }
+    }
+  },
+  "inputs": {},
+  "layout": {
+    "type": "grid",
+    "options": {
+      "backgroundColor": "#0d0d1a"
+    },
+    "structure": [
+      { "item": "viz_total_sessions",    "type": "block", "position": { "x": 0,   "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_anomaly_count",     "type": "block", "position": { "x": 200, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_error_rate",        "type": "block", "position": { "x": 400, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_total_cost",        "type": "block", "position": { "x": 600, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_avg_tokens",        "type": "block", "position": { "x": 800, "y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_active_agents",     "type": "block", "position": { "x": 1000,"y": 0,   "w": 200, "h": 150 } },
+      { "item": "viz_sessions_over_time","type": "block", "position": { "x": 0,   "y": 150, "w": 600, "h": 300 } },
+      { "item": "viz_anomaly_breakdown", "type": "block", "position": { "x": 600, "y": 150, "w": 300, "h": 300 } },
+      { "item": "viz_anomaly_timeline",  "type": "block", "position": { "x": 900, "y": 150, "w": 300, "h": 300 } },
+      { "item": "viz_agent_health",      "type": "block", "position": { "x": 0,   "y": 450, "w": 400, "h": 300 } },
+      { "item": "viz_cost_by_agent",     "type": "block", "position": { "x": 400, "y": 450, "w": 400, "h": 300 } },
+      { "item": "viz_top_errors",        "type": "block", "position": { "x": 0,   "y": 750, "w": 1200,"h": 300 } }
+    ],
+    "globalInputs": []
+  },
+  "title": "AI Agent Overview",
+  "description": "Real-time observability for AI agent sessions, anomalies, cost, and health"
+}
