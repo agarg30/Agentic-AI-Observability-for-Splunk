@@ -34,7 +34,7 @@
 │   │   ├── High anomaly rate       ├── Timeout storm                     │   │
 │   │   ├── Cost spike detected     ├── Null response cascade             │   │
 │   │   ├── Hallucination surge     ├── Agent silent (no events)          │   │
-│   │   ├── Failure loop storm      └── Unhealthy agent (circuit breaker) │   │
+│   │   ├── Failure loop storm      └── Unhealthy agent → circuit breaker │   │
 │   └──────────────┬──────────────────────────┬───────────────────────────┘   │
 │                  │  alert fires              │  SPL query interface          │
 │                  ▼                           ▼                               │
