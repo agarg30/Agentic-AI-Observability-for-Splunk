@@ -1,10 +1,10 @@
 {
   "agent-loan-001": {
-    "status": "healthy",
-    "quarantined_at": "2026-05-13T21:44:15.122836+00:00",
-    "restore_check_at": "2026-05-13T22:14:15.122836+00:00",
+    "status": "quarantined",
+    "quarantined_at": "2026-05-14T12:38:02.923134+00:00",
+    "restore_check_at": "2026-05-14T13:08:02.923134+00:00",
     "reason": "Failure rate 45% exceeded 30% threshold",
-    "restored_at": "2026-05-14T12:20:47.156587+00:00",
+    "restored_at": "2026-05-14T12:31:34.260011+00:00",
     "failure_rate": 0.0
   }
 }
